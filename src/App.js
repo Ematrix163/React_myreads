@@ -1,7 +1,7 @@
 import React from 'react'
 import * as BooksAPI from './BooksAPI'
 import './App.css'
-
+import { Link } from 'react-router-dom'
 
 class BooksApp extends React.Component {
 
@@ -28,22 +28,31 @@ class BooksApp extends React.Component {
 		if (this.state.showSearchPage === false){
 			BooksAPI.getAll().then((book) => {
 				book.map((eachBook) => {
-					this.addBookToShelf(eachBook);
+					// this.addBookToShelf(eachBook);
+
+
 					this.setState((preState) => {
+
+
+						let bts = Object.assign({}, preState.bookToShelf);
+						bts[eachBook.id] = eachBook.shelf;
+
+
+
 						//如果当前shelf标签已经创建，就直接push到对应标签的数组里
 						if (preState.books[eachBook.shelf]) {
 							//深拷贝对象
 							let temp = Object.assign({}, preState.books);
 							temp[eachBook.shelf].push(eachBook);
 							//更新state
-							return {books: temp};
+							return {books: temp, bookToShelf: bts};
 						} else {
 							//如果当前标签没有被创建，就新建一个数组再Push
 							//深拷贝对象
 							let temp = Object.assign({}, preState.books);
 							temp[eachBook.shelf] = [eachBook];
 							//更新state
-							return {books: temp};
+							return {books: temp, bookToShelf: bts};
 						}
 					})
 					return null;
@@ -64,23 +73,13 @@ class BooksApp extends React.Component {
 		})
 	}
 
-	addBookToShelf = (eachBook) => {
-		this.setState(() => {
-			let temp = Object.assign({}, this.state.bookToShelf);
-			temp[eachBook.id] = eachBook.shelf;
-			return {bookToShelf: temp}
-		})
-	}
-
 	shelfChange = (event, book) => {
-
 		let newShelf = event.target.value;
-
 		//确保用户选择的不是none选项
 		if (newShelf !== 'none') {
 			// 再发送ajax请求到服务器通知更改
 			BooksAPI.update(book, newShelf).then((a) => {
-				console.log(a);
+
 				//服务器状态修改成功后，更改本地状态
 				this.setState((preState) => {
 					//获取旧书架的值
@@ -91,7 +90,7 @@ class BooksApp extends React.Component {
 
 
 					let temp2 = Object.assign({}, preState.books);
-					//讲该书从旧书架中删除
+					//将该书从旧书架中删除
 					temp2[oddShelf] = temp2[oddShelf].filter((b) => {
 						return b.id !== book.id
 					})
@@ -108,6 +107,9 @@ class BooksApp extends React.Component {
 
 	}
 
+	changePage = () => {
+		this.setState({ showSearchPage: true });
+	}
 	render() {
 		return (
 			<div className="app">
@@ -132,14 +134,14 @@ class BooksApp extends React.Component {
 				      <ol className="books-grid">
 						  {this.state.searchBooks.map((book) => (
 							  //这边传数据是所有数据都传过去的，是不是只传有用的信息（名字作者）更高效？
-							  <Book key={book.id} detail={book} shelfChange={this.shelfChange}/>
+							  <Book key={book.id} detail={book} shelfChange={this.shelfChange} shelfNum={this.state.bookToShelf}/>
 						  ))}
 					  </ol>
 				    </div>
 				  </div>
 				) : (
 				  //ListBooks组件一共两个参数，一个是把此书加入到书架的操作函数，一个是
-				  <ListBooks shelfChange={this.shelfChange} books={this.state.books}/>
+				  <ListBooks shelfChange={this.shelfChange} books={this.state.books}  shelfNum={this.state.bookToShelf} changePage={this.changePage}/>
 				)}
 			</div>
 		)
@@ -155,7 +157,7 @@ class ListBooks extends React.Component {
 		let content = [];
 		let count = 0;
 		for (let shelf of Object.keys(this.props.books)) {
-			content.push(<BookShelf books={this.props.books[shelf]} key={count} shelf={shelf} shelfChange={this.props.shelfChange}/>);
+			content.push(<BookShelf books={this.props.books[shelf]} key={count} shelf={shelf} shelfChange={this.props.shelfChange}  shelfNum={this.props.shelfNum}/>);
 			count ++;
 		}
 
@@ -170,6 +172,9 @@ class ListBooks extends React.Component {
 						{content}
 					</div>
 				</div>
+				<div className="open-search">
+				  <a onClick={this.props.changePage}>Add a book</a>
+				</div>
 			</div>
 		)
 	}
@@ -180,13 +185,21 @@ class ListBooks extends React.Component {
 class BookShelf extends React.Component {
 
 	render() {
+
+		let title = {
+			'currentlyReading':'Currently Reading',
+			'wantToRead':'Want to Read',
+			'read':'Read'
+		}
+
+
 		return (
 			<div className="bookshelf">
-			  <h2 className="bookshelf-title">{this.props.shelf}</h2>
+			  <h2 className="bookshelf-title">{title[this.props.shelf]}</h2>
 			  <div className="bookshelf-books">
 				<ol className="books-grid">
 				{this.props.books.map(book => (
-				 	<li key={book.id}><Book detail={book} shelfChange={this.props.shelfChange}/></li>
+				 	<li key={book.id}><Book detail={book} shelfChange={this.props.shelfChange} shelfNum={this.props.shelfNum}/></li>
 				))}
 				</ol>
 			  </div>
@@ -200,17 +213,33 @@ class BookShelf extends React.Component {
 //每本书的组件
 class Book extends React.Component {
 	render() {
+
+		//这边是处理选项框前面个勾的
+		let shelfName = {'currentlyReading':'\u00A0\u00A0\u00A0Currently Reading',
+						'wantToRead':'\u00A0\u00A0\u00A0Want to Read',
+						'read':'\u00A0\u00A0\u00A0Read',
+						'none':'\u00A0\u00A0\u00A0None'};
+
+		let bookid = this.props.detail.id;
+		if (this.props.shelfNum.hasOwnProperty(bookid)) {
+			shelfName[this.props.shelfNum[bookid]] = '✓' + shelfName[this.props.shelfNum[bookid]].substr(3, shelfName[this.props.shelfNum[bookid]].length);
+		} else {
+			shelfName['none'] = '✓' + shelfName['none'].substr(4, shelfName['none'].length);
+		}
+
+
+
 		return (
 			<div className="book">
 			  <div className="book-top">
 				<div className="book-cover" style={{ width: 128, height: 193, backgroundImage: `url(${this.props.detail.imageLinks.thumbnail})` }}></div>
 				<div className="book-shelf-changer">
 				  <select value="none" onChange={(val) => this.props.shelfChange(val, this.props.detail)}>
-					<option value="none" disabled>Move to...</option>
-					<option value="currentlyReading">Currently Reading</option>
-					<option value="wantToRead">Want to Read</option>
-					<option value="read">Read</option>
-					<option value="none">None</option>
+					<option value="none" disabled>&nbsp;&nbsp;&nbsp;Move to...</option>
+					<option value="currentlyReading">{shelfName['currentlyReading']}</option>
+					<option value="wantToRead">{shelfName['wantToRead']}</option>
+					<option value="read">{shelfName['read']}</option>
+					<option value="none">{shelfName['none']}</option>
 				  </select>
 				</div>
 			  </div>
