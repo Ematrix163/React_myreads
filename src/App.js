@@ -3,7 +3,7 @@ import * as BooksAPI from './BooksAPI'
 import './App.css'
 import { Link } from 'react-router-dom'
 import { Route } from 'react-router-dom'
-
+import defaultCover from './defaultCover.jpg'
 
 
 class BooksApp extends React.Component {
@@ -52,12 +52,19 @@ class BooksApp extends React.Component {
 	//处理用户键入搜索关键字的函数
 	handleChange = (event) => {
 		let query = event.target.value;
-		//发送api请求，搜索书目
-		BooksAPI.search(query).then((book) => {
-			this.setState({
-				searchBooks: book
+		//check一下搜索的字符是不是空字符
+		if (query !== '') {
+			//发送api请求，搜索书目
+			BooksAPI.search(query).then((book) => {
+					//如果没有搜索到这本书
+					if (book.error && book.error === 'empty query') {
+						this.setState({searchBooks: []})
+					} else {
+						//搜索到了
+						this.setState({searchBooks: book})
+					}
 			})
-		})
+		}
 	}
 
 	shelfChange = (event, book) => {
@@ -74,21 +81,15 @@ class BooksApp extends React.Component {
 					//改变书->书架的键值对
 					let temp1 = Object.assign({}, preState.bookToShelf);
 					temp1[book.id] = newShelf;
-
-
 					let temp2 = Object.assign({}, preState.books);
-
-
 					if (temp2[oddShelf]) {
 						//如果该书存在，将该书从旧书架中删除
 						temp2[oddShelf] = temp2[oddShelf].filter((b) => {
 							return b.id !== book.id
 						})
 					}
-
 					//在新的书架中添加该书
 					temp2[newShelf].push(book);
-
 					return {bookToShelf: temp1, books: temp2}
 				})
 			});
@@ -110,9 +111,9 @@ class BooksApp extends React.Component {
 					  </div>
 					  <div className="search-books-results">
 						<ol className="books-grid">
-							{this.state.searchBooks.map((book) => (
+							{this.state.searchBooks? this.state.searchBooks.map((book) => (
 								<Book key={book.id} detail={book} shelfChange={this.shelfChange} shelfNum={this.state.bookToShelf}/>
-							))}
+							)): {} }
 						</ol>
 					  </div>
 					</div>
@@ -202,10 +203,11 @@ class Book extends React.Component {
 		}
 
 
+
 		return (
 			<div className="book">
 			  <div className="book-top">
-				<div className="book-cover" style={{ width: 128, height: 193, backgroundImage: `url(${this.props.detail.imageLinks.thumbnail})` }}></div>
+				<div className="book-cover" style={{ width: 128, height: 193, backgroundImage:`url(${this.props.detail.imageLinks ? this.props.detail.imageLinks.smallThumbnail : defaultCover})` }}></div>
 				<div className="book-shelf-changer">
 				  <select value="none" onChange={(val) => this.props.shelfChange(val, this.props.detail)}>
 					<option value="none" disabled>&nbsp;&nbsp;&nbsp;Move to...</option>
