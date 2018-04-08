@@ -27,8 +27,6 @@ class BooksApp extends React.Component {
 					let bts = Object.assign({}, preState.bookToShelf);
 					bts[eachBook.id] = eachBook.shelf;
 
-
-
 					//如果当前shelf标签已经创建，就直接push到对应标签的数组里
 					if (preState.books[eachBook.shelf]) {
 						//深拷贝对象
@@ -79,10 +77,15 @@ class BooksApp extends React.Component {
 
 
 					let temp2 = Object.assign({}, preState.books);
-					//将该书从旧书架中删除
-					temp2[oddShelf] = temp2[oddShelf].filter((b) => {
-						return b.id !== book.id
-					})
+
+
+					if (temp2[oddShelf]) {
+						//如果该书存在，将该书从旧书架中删除
+						temp2[oddShelf] = temp2[oddShelf].filter((b) => {
+							return b.id !== book.id
+						})
+					}
+
 					//在新的书架中添加该书
 					temp2[newShelf].push(book);
 
