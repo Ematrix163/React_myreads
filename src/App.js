@@ -2,22 +2,16 @@ import React from 'react'
 import * as BooksAPI from './BooksAPI'
 import './App.css'
 import { Link } from 'react-router-dom'
+import { Route } from 'react-router-dom'
+
+
 
 class BooksApp extends React.Component {
 
 	state = {
-		/**
-		 * TODO: Instead of using this state variable to keep track of which page
-		 * we're on, use the URL in the browser's address bar. This will ensure that
-		 * users can use the browser's back and forward buttons to navigate between
-		 * pages, as well as provide a good URL they can bookmark and share.
-		 */
-		showSearchPage: false,
 		searchBooks: [],
-
 		//这个是一个记录书和书架对应关系的字典，键是书的ID，值是书架名称
 		bookToShelf: {},
-
 		//存储所有书架上的书的状态
 		books: {}
 	}
@@ -25,40 +19,35 @@ class BooksApp extends React.Component {
 
 	//初始化的AJAX请求，获取当前用户所有的书架上的书的数据
 	componentDidMount() {
-		if (this.state.showSearchPage === false){
-			BooksAPI.getAll().then((book) => {
-				book.map((eachBook) => {
-					// this.addBookToShelf(eachBook);
+		BooksAPI.getAll().then((book) => {
+			book.map((eachBook) => {
+				// this.addBookToShelf(eachBook);
+				this.setState((preState) => {
 
-
-					this.setState((preState) => {
-
-
-						let bts = Object.assign({}, preState.bookToShelf);
-						bts[eachBook.id] = eachBook.shelf;
+					let bts = Object.assign({}, preState.bookToShelf);
+					bts[eachBook.id] = eachBook.shelf;
 
 
 
-						//如果当前shelf标签已经创建，就直接push到对应标签的数组里
-						if (preState.books[eachBook.shelf]) {
-							//深拷贝对象
-							let temp = Object.assign({}, preState.books);
-							temp[eachBook.shelf].push(eachBook);
-							//更新state
-							return {books: temp, bookToShelf: bts};
-						} else {
-							//如果当前标签没有被创建，就新建一个数组再Push
-							//深拷贝对象
-							let temp = Object.assign({}, preState.books);
-							temp[eachBook.shelf] = [eachBook];
-							//更新state
-							return {books: temp, bookToShelf: bts};
-						}
-					})
-					return null;
+					//如果当前shelf标签已经创建，就直接push到对应标签的数组里
+					if (preState.books[eachBook.shelf]) {
+						//深拷贝对象
+						let temp = Object.assign({}, preState.books);
+						temp[eachBook.shelf].push(eachBook);
+						//更新state
+						return {books: temp, bookToShelf: bts};
+					} else {
+						//如果当前标签没有被创建，就新建一个数组再Push
+						//深拷贝对象
+						let temp = Object.assign({}, preState.books);
+						temp[eachBook.shelf] = [eachBook];
+						//更新state
+						return {books: temp, bookToShelf: bts};
+					}
 				})
+				return null;
 			})
-		}
+		})
 	}
 
 
@@ -102,47 +91,33 @@ class BooksApp extends React.Component {
 			});
 
 		}
-
-
-
 	}
 
-	changePage = () => {
-		this.setState({ showSearchPage: true });
-	}
 	render() {
 		return (
+
 			<div className="app">
-				{this.state.showSearchPage ? (
-				  <div className="search-books">
-				    <div className="search-books-bar">
-				      <a className="close-search" onClick={() => this.setState({ showSearchPage: false })}>Close</a>
-				      <div className="search-books-input-wrapper">
-				        {/*
-				          NOTES: The search from BooksAPI is limited to a particular set of search terms.
-				          You can find these search terms here:
-				          https://github.com/udacity/reactnd-project-myreads-starter/blob/master/SEARCH_TERMS.md
+				<Route exact path="/search" render={() => (
+					<div className="search-books">
+					  <div className="search-books-bar">
+						<Link to='/' className="close-search">Close</Link>
+						<div className="search-books-input-wrapper">
+						  <input type="text" placeholder="Search by title or author" onChange={this.handleChange}/>
+						</div>
+					  </div>
+					  <div className="search-books-results">
+						<ol className="books-grid">
+							{this.state.searchBooks.map((book) => (
+								<Book key={book.id} detail={book} shelfChange={this.shelfChange} shelfNum={this.state.bookToShelf}/>
+							))}
+						</ol>
+					  </div>
+					</div>
+				)}/>
 
-				          However, remember that the BooksAPI.search method DOES search by title or author. So, don't worry if
-				          you don't find a specific author or title. Every search is limited by search terms.
-				        */}
-				        <input type="text" placeholder="Search by title or author" onChange={this.handleChange}/>
-				      </div>
-				    </div>
-				    <div className="search-books-results">
-
-				      <ol className="books-grid">
-						  {this.state.searchBooks.map((book) => (
-							  //这边传数据是所有数据都传过去的，是不是只传有用的信息（名字作者）更高效？
-							  <Book key={book.id} detail={book} shelfChange={this.shelfChange} shelfNum={this.state.bookToShelf}/>
-						  ))}
-					  </ol>
-				    </div>
-				  </div>
-				) : (
-				  //ListBooks组件一共两个参数，一个是把此书加入到书架的操作函数，一个是
-				  <ListBooks shelfChange={this.shelfChange} books={this.state.books}  shelfNum={this.state.bookToShelf} changePage={this.changePage}/>
-				)}
+				<Route exact path="/" render={() => (
+					  <ListBooks shelfChange={this.shelfChange} books={this.state.books}  shelfNum={this.state.bookToShelf}/>
+				)}/>
 			</div>
 		)
 	}
@@ -152,7 +127,6 @@ class BooksApp extends React.Component {
 // 所有书架集合
 class ListBooks extends React.Component {
 
-
 	render() {
 		let content = [];
 		let count = 0;
@@ -160,7 +134,6 @@ class ListBooks extends React.Component {
 			content.push(<BookShelf books={this.props.books[shelf]} key={count} shelf={shelf} shelfChange={this.props.shelfChange}  shelfNum={this.props.shelfNum}/>);
 			count ++;
 		}
-
 
 		return (
 			<div className='list-books'>
@@ -173,7 +146,7 @@ class ListBooks extends React.Component {
 					</div>
 				</div>
 				<div className="open-search">
-				  <a onClick={this.props.changePage}>Add a book</a>
+				  <Link to="/search">Add a book</Link>
 				</div>
 			</div>
 		)
@@ -185,13 +158,11 @@ class ListBooks extends React.Component {
 class BookShelf extends React.Component {
 
 	render() {
-
 		let title = {
 			'currentlyReading':'Currently Reading',
 			'wantToRead':'Want to Read',
 			'read':'Read'
 		}
-
 
 		return (
 			<div className="bookshelf">
@@ -224,9 +195,8 @@ class Book extends React.Component {
 		if (this.props.shelfNum.hasOwnProperty(bookid)) {
 			shelfName[this.props.shelfNum[bookid]] = '✓' + shelfName[this.props.shelfNum[bookid]].substr(3, shelfName[this.props.shelfNum[bookid]].length);
 		} else {
-			shelfName['none'] = '✓' + shelfName['none'].substr(4, shelfName['none'].length);
+			shelfName['none'] = '✓' + shelfName['none'].substr(3, shelfName['none'].length);
 		}
-
 
 
 		return (
@@ -244,7 +214,7 @@ class Book extends React.Component {
 				</div>
 			  </div>
 			  <div className="book-title">{this.props.detail.title}</div>
-			  <div className="book-authors">{this.props.detail.authors['0']}</div>
+			  <div className="book-authors">{this.props.detail.authors}</div>
 			</div>
 		)
 	}
